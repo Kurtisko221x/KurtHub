@@ -12,15 +12,23 @@ const PORT = 3000;
 // Pre server (Render/Railway): Nastavte environment variable OPENAI_API_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-proj-YOUR-API-KEY-HERE';
 
+// Helper funkcia na kontrolu API kľúča
+function isValidApiKey(key) {
+    return key && 
+           key !== 'sk-proj-YOUR-API-KEY-HERE' && 
+           key.startsWith('sk-') && 
+           key.length > 20;
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
 app.post('/api/chat', async (req, res) => {
     try {
-        if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-YOUR-API-KEY-HERE') {
+        if (!isValidApiKey(OPENAI_API_KEY)) {
             return res.status(400).json({ 
-                error: { message: '⚠️ Nastavte API kľúč v server.js na riadku 9!' } 
+                error: { message: '⚠️ Nastavte API kľúč! Pre lokálne použitie: server.js riadok 13. Pre Render: Environment Variables → OPENAI_API_KEY' } 
             });
         }
 
@@ -42,9 +50,9 @@ app.post('/api/chat', async (req, res) => {
 
 app.post('/api/generate-image', async (req, res) => {
     try {
-        if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-YOUR-API-KEY-HERE') {
+        if (!isValidApiKey(OPENAI_API_KEY)) {
             return res.status(400).json({ 
-                error: { message: '⚠️ Nastavte API kľúč v server.js na riadku 9!' } 
+                error: { message: '⚠️ Nastavte API kľúč! Pre lokálne použitie: server.js riadok 13. Pre Render: Environment Variables → OPENAI_API_KEY' } 
             });
         }
 
@@ -72,9 +80,9 @@ app.post('/api/generate-image', async (req, res) => {
 
 app.post('/api/generate-pptx', async (req, res) => {
     try {
-        if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-YOUR-API-KEY-HERE') {
+        if (!isValidApiKey(OPENAI_API_KEY)) {
             return res.status(400).json({ 
-                error: { message: '⚠️ Nastavte API kľúč v server.js na riadku 9!' } 
+                error: { message: '⚠️ Nastavte API kľúč! Pre lokálne použitie: server.js riadok 13. Pre Render: Environment Variables → OPENAI_API_KEY' } 
             });
         }
 
@@ -340,9 +348,9 @@ app.post('/api/generate-pptx', async (req, res) => {
 
 app.post('/api/generate-pdf', async (req, res) => {
     try {
-        if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-YOUR-API-KEY-HERE') {
+        if (!isValidApiKey(OPENAI_API_KEY)) {
             return res.status(400).json({ 
-                error: { message: '⚠️ Nastavte API kľúč v server.js na riadku 9!' } 
+                error: { message: '⚠️ Nastavte API kľúč! Pre lokálne použitie: server.js riadok 13. Pre Render: Environment Variables → OPENAI_API_KEY' } 
             });
         }
 
