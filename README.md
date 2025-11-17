@@ -2,18 +2,28 @@
 
 Komplexná AI platforma s 10 funkciami pre celú rodinu.
 
-## ✨ Funkcie
+## ✨ Funkcie (10 AI nástrojov)
 
 - 💬 **Chat s AI** - GPT-4o-mini konverzácia
 - 📊 **Grafy** - Profesionálne grafy s dvoma osami Y
 - 🎨 **Obrázky** - DALL-E 3 generátor
 - 🖼️ **Analýza obrázkov** - GPT Vision
-- 📽️ **PowerPoint prezentácie** - Skutočné .pptx súbory
-- 💻 **Code Review** - Analýza kódu
+- 📽️ **PowerPoint prezentácie** - Skutočné .pptx súbory (Beautiful.ai štýl)
+- 💻 **Code Review** - Analýza kódu s syntax highlighting
 - ✨ **Humanizátor** - Prepis AI textu
 - 📝 **Summarizer** - Zhrnutie dlhých textov
 - 📄 **PDF Generator** - Faktúry a dokumenty
 - ❓ **Quiz Generator** - Vzdelávacie testy
+
+## 🎨 UI/UX Features
+
+- ☀️ **Dark/Light Mode** - Prepínač tmavého a svetlého režimu
+- 📝 **Textový Editor** - Pre dlhé texty a kód
+- 🎯 **Smart Layouts** - 5 rôznych dizajnov pre PowerPoint
+- 🤖 **Avatary** - User a AI avatary v chate
+- 📊 **Progress Bar** - Animovaný loading indikátor
+- 🎨 **Markdown Support** - Formátovanie textu (tučné, zoznamy, code blocks)
+- 💻 **Syntax Highlighting** - Farebný kód vo všetkých odpovedach
 
 ## 🚀 Inštalácia
 
