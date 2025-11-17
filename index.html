@@ -3,7 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Studio - Rodinná Platforma</title>
+    <title>AI Studio - Rodinná AI Platforma | 10 AI Nástrojov</title>
+    <meta name="description" content="Komplexná AI platforma s 10 funkciami: Chat, Grafy, Obrázky, PowerPoint, PDF, Quiz a viac. Pre celú rodinu.">
+    <meta name="keywords" content="AI, ChatGPT, DALL-E, PowerPoint, PDF generator, AI tools, Slovakia">
+    <meta name="author" content="AI Studio Team">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="AI Studio - Rodinná AI Platforma">
+    <meta property="og:description" content="10 AI nástrojov v jednej aplikácii. Chat, Grafy, Obrázky, Prezentácie a viac.">
+    <meta property="og:image" content="https://via.placeholder.com/1200x630/667eea/ffffff?text=AI+Studio">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AI Studio - Rodinná AI Platforma">
+    <meta name="twitter:description" content="10 AI nástrojov v jednej aplikácii.">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -98,6 +112,65 @@
             padding-left: 1em;
             margin: 1em 0;
             color: #94a3b8;
+        }
+        
+        /* Scroll animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        .fade-in-up-delay-1 {
+            animation: fadeInUp 0.6s ease-out 0.1s forwards;
+            opacity: 0;
+        }
+        
+        .fade-in-up-delay-2 {
+            animation: fadeInUp 0.6s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+        
+        /* Smooth loading */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        body {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        /* Better contrast for hero */
+        .hero-text {
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Mobile responsive improvements */
+        @media (max-width: 768px) {
+            .hero-text {
+                font-size: 2rem !important;
+            }
+            .tool-card {
+                padding: 1rem !important;
+            }
+        }
+        
+        /* Accessibility - better focus states */
+        button:focus-visible,
+        input:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid #8b5cf6;
+            outline-offset: 2px;
         }
     </style>
 </head>
@@ -1100,57 +1173,111 @@
                         <!-- Messages -->
                         <div class="flex-1 overflow-y-auto p-6" id="messages">
                             ${chat.messages.length === 0 ? `
-                                <div class="max-w-4xl mx-auto">
-                                    <div class="text-center mb-12 mt-8">
-                                        <h2 class="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                                            Vítajte v AI Studio
-                                        </h2>
-                                        <p class="text-slate-300 text-lg mb-2">Komplexná AI platforma pre vašu rodinu</p>
-                                        <p class="text-slate-400 text-sm">💡 Prepínajte medzi funkciami pomocou tlačidiel v pravom hornom rohu</p>
+                                <div class="max-w-5xl mx-auto">
+                                    <!-- Hero Section -->
+                                    <div class="text-center mb-16 mt-12 fade-in-up">
+                                        <h1 class="text-5xl md:text-6xl font-bold mb-6 hero-text">
+                                            <span class="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
+                                                AI Studio
+                                            </span>
+                                        </h1>
+                                        <p class="text-xl md:text-2xl mb-4 hero-text font-medium ${textColor === 'text-white' ? 'text-slate-100' : 'text-slate-800'}">
+                                            Komplexná AI platforma pre vašu rodinu
+                                        </p>
+                                        <p class="text-base md:text-lg ${textColor === 'text-white' ? 'text-slate-300' : 'text-slate-600'} mb-8">
+                                            10 výkonných AI nástrojov v jednej aplikácii
+                                        </p>
+                                        
+                                        <!-- CTA Buttons -->
+                                        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 fade-in-up-delay-1">
+                                            <button onclick="state.mode = 'chat'; render();" 
+                                                class="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-semibold text-white shadow-lg shadow-purple-500/50 transition-all transform hover:scale-105">
+                                                🚀 Začať používať
+                                            </button>
+                                            <button onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})" 
+                                                class="px-8 py-4 bg-slate-700/50 hover:bg-slate-600/70 rounded-xl font-semibold ${textColor} border border-slate-600 transition-all">
+                                                📚 Zistiť viac
+                                            </button>
+                                        </div>
                                     </div>
                                     
-                                    <div class="mb-8">
-                                        <h3 class="text-2xl font-bold mb-6 text-center text-purple-300">✨ Dostupné funkcie</h3>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <!-- Features Section -->
+                                    <div id="features" class="mb-12 fade-in-up-delay-2">
+                                        <h2 class="text-3xl md:text-4xl font-bold mb-8 text-center ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'}">
+                                            ✨ Dostupné funkcie
+                                        </h2>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                             ${tools.map((t, i) => `
-                                                <div class="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-xl p-6 text-left">
+                                                <div class="tool-card bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-xl p-6 text-left hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/20 transition-all transform hover:-translate-y-1">
                                                     <div class="text-4xl mb-4">${t.icon}</div>
-                                                    <h3 class="text-lg font-semibold mb-2">${t.title}</h3>
-                                                    <p class="text-sm text-slate-400">${t.desc}</p>
+                                                    <h3 class="text-lg font-semibold mb-2 ${textColor}">${t.title}</h3>
+                                                    <p class="text-sm ${textColor === 'text-white' ? 'text-slate-400' : 'text-slate-600'}">${t.desc}</p>
                                                 </div>
                                             `).join('')}
                                         </div>
                                     </div>
 
-                                    <div class="bg-slate-800/30 rounded-xl p-6 border border-purple-500/20">
-                                        <h3 class="text-xl font-bold mb-4 text-center">🚀 Ako začať?</h3>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                            <div class="flex items-start gap-3">
-                                                <span class="text-2xl">1️⃣</span>
+                                    <!-- About Section -->
+                                    <div class="bg-slate-800/30 rounded-2xl p-8 md:p-10 border border-purple-500/20 mb-12 fade-in-up-delay-2">
+                                        <h2 class="text-2xl md:text-3xl font-bold mb-6 text-center ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'}">
+                                            🎯 O AI Studio
+                                        </h2>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm md:text-base">
+                                            <div>
+                                                <h3 class="font-semibold ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'} mb-3">💻 Technológie</h3>
+                                                <ul class="space-y-2 ${textColor === 'text-white' ? 'text-slate-300' : 'text-slate-700'}">
+                                                    <li>• Node.js + Express (Backend)</li>
+                                                    <li>• OpenAI API (GPT-4o-mini, DALL-E 3)</li>
+                                                    <li>• Chart.js (Grafy)</li>
+                                                    <li>• PptxGenJS (PowerPoint)</li>
+                                                    <li>• PDFKit (Dokumenty)</li>
+                                                    <li>• Vanilla JS + Tailwind CSS</li>
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <h3 class="font-semibold ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'} mb-3">🎨 Features</h3>
+                                                <ul class="space-y-2 ${textColor === 'text-white' ? 'text-slate-300' : 'text-slate-700'}">
+                                                    <li>• Dark/Light Mode</li>
+                                                    <li>• Markdown Support</li>
+                                                    <li>• Syntax Highlighting</li>
+                                                    <li>• Progress Animations</li>
+                                                    <li>• Responsive Design</li>
+                                                    <li>• 10 AI Nástrojov</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- How to Start -->
+                                    <div class="bg-slate-800/30 rounded-xl p-6 md:p-8 border border-purple-500/20 mb-8 fade-in-up-delay-2">
+                                        <h3 class="text-xl md:text-2xl font-bold mb-6 text-center ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'}">🚀 Ako začať?</h3>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm md:text-base">
+                                            <div class="flex items-start gap-4">
+                                                <div class="flex-shrink-0 w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold text-white">1</div>
                                                 <div>
-                                                    <p class="font-semibold text-purple-300">Vyberte funkciu</p>
-                                                    <p class="text-slate-400">Kliknite na tlačidlo v hornom menu</p>
+                                                    <p class="font-semibold ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'} mb-1">Vyberte funkciu</p>
+                                                    <p class="${textColor === 'text-white' ? 'text-slate-400' : 'text-slate-600'}">Kliknite na tlačidlo v hornom menu</p>
                                                 </div>
                                             </div>
-                                            <div class="flex items-start gap-3">
-                                                <span class="text-2xl">2️⃣</span>
+                                            <div class="flex items-start gap-4">
+                                                <div class="flex-shrink-0 w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold text-white">2</div>
                                                 <div>
-                                                    <p class="font-semibold text-purple-300">Zadajte požiadavku</p>
-                                                    <p class="text-slate-400">Napíšte čo potrebujete</p>
+                                                    <p class="font-semibold ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'} mb-1">Zadajte požiadavku</p>
+                                                    <p class="${textColor === 'text-white' ? 'text-slate-400' : 'text-slate-600'}">Napíšte čo potrebujete</p>
                                                 </div>
                                             </div>
-                                            <div class="flex items-start gap-3">
-                                                <span class="text-2xl">3️⃣</span>
+                                            <div class="flex items-start gap-4">
+                                                <div class="flex-shrink-0 w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold text-white">3</div>
                                                 <div>
-                                                    <p class="font-semibold text-purple-300">Získajte výsledok</p>
-                                                    <p class="text-slate-400">AI spraví svoju mágiu ✨</p>
+                                                    <p class="font-semibold ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'} mb-1">Získajte výsledok</p>
+                                                    <p class="${textColor === 'text-white' ? 'text-slate-400' : 'text-slate-600'}">AI spraví svoju mágiu ✨</p>
                                                 </div>
                                             </div>
-                                            <div class="flex items-start gap-3">
-                                                <span class="text-2xl">4️⃣</span>
+                                            <div class="flex items-start gap-4">
+                                                <div class="flex-shrink-0 w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold text-white">4</div>
                                                 <div>
-                                                    <p class="font-semibold text-purple-300">Stiahnite si ho</p>
-                                                    <p class="text-slate-400">Grafy, prezentácie, obrázky...</p>
+                                                    <p class="font-semibold ${textColor === 'text-white' ? 'text-purple-300' : 'text-purple-600'} mb-1">Stiahnite si ho</p>
+                                                    <p class="${textColor === 'text-white' ? 'text-slate-400' : 'text-slate-600'}">Grafy, prezentácie, obrázky...</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -1175,7 +1302,7 @@
                                                 ${m.isImage ? `
                                                     <div class="space-y-3">
                                                         <div class="text-sm text-slate-300">✨ Vygenerovaný obrázok:</div>
-                                                        <img src="${m.content}" alt="${m.imagePrompt}" class="rounded-lg w-full max-w-2xl" />
+                                                        <img src="${m.content}" alt="${m.imagePrompt || 'Vygenerovaný obrázok'}" class="rounded-lg w-full max-w-2xl" loading="lazy" />
                                                         <div class="text-xs text-slate-400 italic">"${m.imagePrompt}"</div>
                                                         <a href="${m.content}" target="_blank" class="inline-block mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm transition-colors">
                                                             📥 Stiahnuť obrázok
@@ -1193,7 +1320,7 @@
                                                     </div>
                                                 ` : m.imageUrl ? `
                                                     <div class="space-y-3">
-                                                        <img src="${m.imageUrl}" class="rounded-lg max-w-xs">
+                                                        <img src="${m.imageUrl}" alt="Nahraný obrázok na analýzu" class="rounded-lg max-w-xs" loading="lazy">
                                                         <div class="markdown-content">${formatMarkdown(m.content)}</div>
                                                     </div>
                                                 ` : `
@@ -1339,6 +1466,26 @@
                     hljs.highlightElement(block);
                 });
             }, 50);
+            
+            // Scroll animations observer
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('fade-in-up');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+            
+            // Observe all fade-in elements
+            document.querySelectorAll('.fade-in-up-delay-1, .fade-in-up-delay-2').forEach(el => {
+                observer.observe(el);
+            });
         }
 
         // Inicializácia
