@@ -35,6 +35,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
+// Debug endpoint pre kontrolu API kľúča (len pre development)
+app.get('/api/debug-key', (req, res) => {
+    res.json({
+        hasEnvVar: !!process.env.OPENAI_API_KEY,
+        keyLength: OPENAI_API_KEY?.length || 0,
+        keyPrefix: OPENAI_API_KEY?.substring(0, 15) + '...' || 'none',
+        isValid: isValidApiKey(OPENAI_API_KEY),
+        nodeEnv: process.env.NODE_ENV || 'development'
+    });
+});
+
 app.post('/api/chat', async (req, res) => {
     try {
         if (!isValidApiKey(OPENAI_API_KEY)) {
