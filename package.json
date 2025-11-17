@@ -1,0 +1,17 @@
+{
+  "name": "ai-studio-rodinny-projekt",
+  "version": "1.0.0",
+  "description": "AI Studio - Rodinna Platforma",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.7.0",
+    "pptxgenjs": "^3.12.0",
+    "pdfkit": "^0.13.0"
+  }
+}
+

@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Studio - Rodinná Platforma</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .bounce { animation: bounce 1s infinite; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        // Stav aplikácie
+        let state = {
+            chats: [{ id: 1, title: 'Nový čet', messages: [] }],
+            activeChat: 1,
+            input: '',
+            isLoading: false,
+            sidebarOpen: true,
+            mode: 'chat', // 'chat', 'chart', 'image', 'analyze-image', 'code', 'humanize', 'presentation', 'summarizer', 'pdf', 'quiz'
+            imageSize: '1024x1024',
+            imageQuality: 'standard',
+            chartType: 'bar',
+            chartData: null,
+            uploadedImage: null,
+            useTextEditor: false // prepínanie medzi input a textarea
+        };
+
+        const tools = [
+            { title: 'Chat s AI', desc: 'Prirozdená konverzácia s AI modelom', icon: '💬', mode: 'chat' },
+            { title: 'Vizualizácia dát', desc: 'Vytváraj profesionálne grafy', icon: '📊', mode: 'chart' },
+            { title: 'Generovanie obrázkov', desc: 'DALL-E 3 AI generátor', icon: '🎨', mode: 'image' },
+            { title: 'Analýza obrázkov', desc: 'Nahraj obrázok na analýzu', icon: '🖼️', mode: 'analyze-image' },
+            { title: 'PowerPoint prezentácie', desc: 'Skutočné .pptx súbory', icon: '📽️', mode: 'presentation' },
+            { title: 'Pomoc s kódom', desc: 'Code review a debugging', icon: '💻', mode: 'code' },
+            { title: 'Humanizátor', desc: 'Prepíš text prirodzene', icon: '✨', mode: 'humanize' },
+            { title: 'Summarizer', desc: 'Zhrnutie dlhých textov', icon: '📝', mode: 'summarizer' },
+            { title: 'PDF Generator', desc: 'Faktúry a dokumenty', icon: '📄', mode: 'pdf' },
+            { title: 'Quiz Generator', desc: 'Testy z učiva', icon: '❓', mode: 'quiz' }
+        ];
+
+        function getCurrentChat() {
+            return state.chats.find(c => c.id === state.activeChat);
+        }
+
+        function createNewChat() {
+            const newId = Math.max(...state.chats.map(c => c.id)) + 1;
+            state.chats.unshift({ id: newId, title: 'Nový čet', messages: [] });
+            state.activeChat = newId;
+            render();
+        }
+
+        async function sendMessage() {
+            if (state.mode === 'image') {
+                generateImage();
+                return;
+            }
+
+            if (state.mode === 'chart') {
+                generateChart();
+                return;
+            }
+
+            if (state.mode === 'analyze-image') {
+                analyzeImage();
+                return;
+            }
+
+            if (state.mode === 'humanize') {
+                humanizeText();
+                return;
+            }
+
+            if (state.mode === 'code') {
+                reviewCode();
+                return;
+            }
+
+            if (state.mode === 'presentation') {
+                generatePresentation();
+                return;
+            }
+
+            if (state.mode === 'summarizer') {
+                summarizeText();
+                return;
+            }
+
+            if (state.mode === 'pdf') {
+                generatePDF();
+                return;
+            }
+
+            if (state.mode === 'quiz') {
+                generateQuiz();
+                return;
+            }
+
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const userMsg = { role: 'user', content: state.input };
+            chat.messages.push(userMsg);
+            
+            if (chat.messages.length === 1) {
+                chat.title = state.input.substring(0, 30) + (state.input.length > 30 ? '...' : '');
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: chat.messages,
+                        temperature: 0.7,
+                        max_tokens: 2000
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: data.choices[0].message.content
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        async function generateImage() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const prompt = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '🎨 Generuj obrázok: ' + prompt 
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '🎨 ' + prompt.substring(0, 25) + (prompt.length > 25 ? '...' : '');
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const response = await fetch('http://localhost:3000/api/generate-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        size: state.imageSize,
+                        quality: state.imageQuality
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: data.data[0].url,
+                    isImage: true,
+                    imagePrompt: prompt
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        async function analyzeImage() {
+            if (!state.uploadedImage && !state.input.trim()) {
+                alert('Nahrajte obrázok alebo vložte URL!');
+                return;
+            }
+            
+            const chat = getCurrentChat();
+            const prompt = state.input.trim() || 'Analyzuj tento obrázok a popíš čo vidíš.';
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '🖼️ Analýza obrázka: ' + prompt,
+                imageUrl: state.uploadedImage
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '🖼️ ' + prompt.substring(0, 25) + '...';
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const messages = [
+                    {
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: prompt },
+                            { type: 'image_url', image_url: { url: state.uploadedImage } }
+                        ]
+                    }
+                ];
+
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: messages,
+                        max_tokens: 1000
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: data.choices[0].message.content
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.uploadedImage = null;
+            state.isLoading = false;
+            render();
+        }
+
+        async function humanizeText() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const textToHumanize = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '✨ Humanizuj text: ' + textToHumanize 
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '✨ Humanizátor';
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Si expert na prepisovanie textov. Tvoja úloha je prepísať text tak, aby znel prirodzene, ľudsky a nebol rozpoznateľný ako AI generovaný. Zachovaj význam, ale zmeň formulácie, pridaj osobnosť, emocionálnosť a variabilitu vo vetách. Nepoužívaj štandardné AI frázy.'
+                            },
+                            {
+                                role: 'user',
+                                content: 'Prepíš tento text prirodzenejšie a ľudskejšie:\n\n' + textToHumanize
+                            }
+                        ],
+                        temperature: 0.9,
+                        max_tokens: 2000
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: data.choices[0].message.content
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        async function reviewCode() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const codeInput = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '💻 Code review: ' + codeInput 
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '💻 Code Review';
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Si skúsený programátor a code reviewer. Analyzuj kód, poukazuj na chyby, bezpečnostné problémy, možné vylepšenia a best practices. Vysvetľuj jasne a zrozumiteľne.'
+                            },
+                            {
+                                role: 'user',
+                                content: codeInput
+                            }
+                        ],
+                        temperature: 0.3,
+                        max_tokens: 2000
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: data.choices[0].message.content
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        async function generatePresentation() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const topic = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '📽️ Vytvor PowerPoint prezentáciu: ' + topic 
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '📽️ ' + topic.substring(0, 25) + '...';
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                // Generuj skutočný PowerPoint súbor
+                const response = await fetch('http://localhost:3000/api/generate-pptx', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: topic })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'API Error');
+                }
+
+                // Stiahni PPTX súbor
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prezentacia-${Date.now()}.pptx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '✅ PowerPoint prezentácia bola vygenerovaná a stiahnutá!\n\n📥 Súbor: prezentacia.pptx\n🎯 Téma: ' + topic + '\n\n💡 Otvorte súbor v Microsoft PowerPoint, Google Slides alebo LibreOffice Impress.',
+                    isPptxDownloaded: true
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        async function summarizeText() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const textToSummarize = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '📝 Zhrnúť text: ' + textToSummarize.substring(0, 100) + '...'
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '📝 Summarizer';
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Si expert na zhrnutie textov. Vytvor krátke, výstižné zhrnutie textu. Zachovaj kľúčové informácie a hlavné body. Zhrnutie by malo byť 5-10x kratšie ako originál. Použi odrážky pre prehľadnosť.'
+                            },
+                            {
+                                role: 'user',
+                                content: 'Zhrnúť tento text:\n\n' + textToSummarize
+                            }
+                        ],
+                        temperature: 0.3,
+                        max_tokens: 1000
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '📝 **Zhrnutie:**\n\n' + data.choices[0].message.content + '\n\n---\n\n💡 **Pôvodná dĺžka:** ' + textToSummarize.length + ' znakov\n✨ **Zhrnutie:** ' + data.choices[0].message.content.length + ' znakov'
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        async function generatePDF() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const pdfRequest = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '📄 Vytvor PDF: ' + pdfRequest 
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '📄 PDF Generator';
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const response = await fetch('http://localhost:3000/api/generate-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ request: pdfRequest })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'API Error');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dokument-${Date.now()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '✅ PDF dokument bol vygenerovaný a stiahnutý!\n\n📥 Súbor: dokument.pdf\n📝 Typ: ' + pdfRequest + '\n\n💡 Otvorte súbor v PDF prehliadači.',
+                    isPdfDownloaded: true
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        async function generateQuiz() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const learningMaterial = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '❓ Vytvor kvíz z: ' + learningMaterial.substring(0, 100) + '...'
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '❓ Quiz Generator';
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Si učiteľ. Vytvor vzdelávací kvíz s 10 otázkami z poskytnutého učebného materiálu. Každá otázka musí mať 4 možnosti (A, B, C, D) a správnu odpoveď na konci. Formát:\n\n1. Otázka?\nA) možnosť\nB) možnosť\nC) možnosť\nD) možnosť\n\nNa konci daj: "✅ SPRÁVNE ODPOVEDE:" a vypíš ich.'
+                            },
+                            {
+                                role: 'user',
+                                content: 'Vytvor kvíz z tohto učebného materiálu:\n\n' + learningMaterial
+                            }
+                        ],
+                        temperature: 0.5,
+                        max_tokens: 2000
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: data.choices[0].message.content,
+                    isQuiz: true
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+        }
+
+        function downloadPresentation(htmlContent, filename) {
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'prezentacia.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    state.uploadedImage = e.target.result;
+                    render();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function generateChart() {
+            if (!state.input.trim() || state.isLoading) return;
+
+            const chat = getCurrentChat();
+            const userPrompt = state.input;
+            
+            chat.messages.push({ 
+                role: 'user', 
+                content: '📊 Vytvor graf: ' + userPrompt 
+            });
+            
+            if (chat.messages.length === 1) {
+                chat.title = '📊 ' + userPrompt.substring(0, 25) + (userPrompt.length > 25 ? '...' : '');
+            }
+
+            state.input = '';
+            state.isLoading = true;
+            render();
+
+            try {
+                // Pýtame AI aby vytvorila JSON dáta pre graf
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Si pomocník pre vytváranie grafov. Používateľ ti povie aké dáta chce vizualizovať.\n\nDÔLEŽITÉ PRAVIDLÁ:\n1. Ak sú dve dátové sady s veľmi odlišnými mierkami (rozdiel >5x), VŽDY použi dve osi Y.\n2. Ak používateľ povie "dve osi Y", "sekundárna os", "druhá os Y", použi dve osi.\n3. Pre grafy s dvoma osami: prvý dataset má "yAxisID": "y", druhý má "yAxisID": "y1".\n4. Pre stĺpcové grafy použi type "bar", pre čiarové "line".\n5. Môžeš kombinovať typy v jednom grafe (napr. stĺpce + čiara).\n\nFormát odpovede (VŽDY iba validný JSON):\n{"type": "bar|line|pie|doughnut", "title": "Názov", "labels": ["L1","L2"], "datasets": [{"label": "Dataset 1", "data": [10,20], "type": "bar", "yAxisID": "y"}, {"label": "Dataset 2", "data": [100,200], "type": "line", "yAxisID": "y1"}], "dualAxis": true}\n\nAk je iba jedna os: "dualAxis": false a všetky datasety majú "yAxisID": "y".'
+                            },
+                            {
+                                role: 'user',
+                                content: userPrompt
+                            }
+                        ],
+                        temperature: 0.3,
+                        max_tokens: 1000
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'API Error');
+                }
+
+                let chartConfig;
+                try {
+                    // Pokús sa extrahovať JSON z odpovede
+                    let jsonText = data.choices[0].message.content.trim();
+                    // Odstráň markdown code blocky ak existujú
+                    jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    chartConfig = JSON.parse(jsonText);
+                } catch (e) {
+                    throw new Error('AI nevrátila validný formát grafu. Skúste inú formuláciu požiadavky.');
+                }
+
+                chat.messages.push({
+                    role: 'assistant',
+                    content: JSON.stringify(chartConfig),
+                    isChart: true,
+                    chartConfig: chartConfig,
+                    chartId: 'chart-' + Date.now()
+                });
+            } catch (error) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '❌ Chyba: ' + error.message,
+                    isError: true
+                });
+            }
+
+            state.isLoading = false;
+            render();
+            
+            // Vykreslíme grafy po renderi
+            setTimeout(() => {
+                chat.messages.forEach(m => {
+                    if (m.isChart && m.chartId) {
+                        const canvas = document.getElementById(m.chartId);
+                        if (canvas && !canvas.chart) {
+                            createChartOnCanvas(canvas, m.chartConfig);
+                        }
+                    }
+                });
+            }, 100);
+        }
+
+        function createChartOnCanvas(canvas, config) {
+            if (canvas.chart) {
+                canvas.chart.destroy();
+            }
+
+            const colors = [
+                'rgba(139, 92, 246, 0.8)',  // purple - fialová
+                'rgba(236, 72, 153, 0.8)',  // pink - ružová
+                'rgba(59, 130, 246, 0.8)',  // blue - modrá
+                'rgba(34, 197, 94, 0.8)',   // green - zelená
+                'rgba(251, 146, 60, 0.8)',  // orange - oranžová
+                'rgba(239, 68, 68, 0.8)',   // red - červená
+                'rgba(168, 85, 247, 0.8)',  // violet - fialková
+                'rgba(14, 165, 233, 0.8)'   // sky - nebeskná
+            ];
+
+            const datasets = config.datasets.map((dataset, idx) => {
+                const color = dataset.backgroundColor || colors[idx % colors.length];
+                const borderColor = dataset.borderColor || color.replace('0.8', '1');
+                
+                return {
+                    ...dataset,
+                    backgroundColor: color,
+                    borderColor: borderColor,
+                    borderWidth: dataset.type === 'line' ? 3 : 2,
+                    tension: dataset.type === 'line' ? 0.4 : 0,
+                    pointRadius: dataset.type === 'line' ? 5 : 0,
+                    pointHoverRadius: dataset.type === 'line' ? 7 : 0,
+                    pointBackgroundColor: borderColor,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    fill: dataset.type === 'line' ? false : true
+                };
+            });
+
+            // Kontrola či potrebujeme dve osi Y
+            const needsDualAxis = config.dualAxis === true;
+            const isPieOrDoughnut = config.type === 'pie' || config.type === 'doughnut';
+
+            // Nastavenie osí
+            let scalesConfig = {};
+            if (!isPieOrDoughnut) {
+                scalesConfig = {
+                    x: {
+                        ticks: { color: '#fff', font: { size: 12 } },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        ticks: { 
+                            color: needsDualAxis ? datasets[0].borderColor : '#fff',
+                            font: { size: 12, weight: needsDualAxis ? 'bold' : 'normal' }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        title: needsDualAxis && datasets[0] ? {
+                            display: true,
+                            text: datasets[0].label,
+                            color: datasets[0].borderColor,
+                            font: { size: 13, weight: 'bold' }
+                        } : undefined
+                    }
+                };
+
+                // Pridanie druhej osi Y ak je potrebná
+                if (needsDualAxis && datasets.length > 1) {
+                    scalesConfig.y1 = {
+                        type: 'linear',
+                        position: 'right',
+                        ticks: { 
+                            color: datasets[1].borderColor,
+                            font: { size: 12, weight: 'bold' }
+                        },
+                        grid: { 
+                            drawOnChartArea: false // iba pravá os, nie kresliť cez graf
+                        },
+                        title: {
+                            display: true,
+                            text: datasets[1].label,
+                            color: datasets[1].borderColor,
+                            font: { size: 13, weight: 'bold' }
+                        }
+                    };
+                }
+            }
+
+            canvas.chart = new Chart(canvas, {
+                type: config.type || 'bar',
+                data: {
+                    labels: config.labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: config.title,
+                            color: '#fff',
+                            font: { size: 18, weight: 'bold' },
+                            padding: 20
+                        },
+                        legend: {
+                            labels: { 
+                                color: '#fff',
+                                font: { size: 13 },
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            padding: 12,
+                            displayColors: true
+                        }
+                    },
+                    scales: scalesConfig
+                }
+            });
+        }
+
+        function downloadChart(chartId) {
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                const url = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'graf-' + Date.now() + '.png';
+                a.click();
+            }
+        }
+
+        function render() {
+            const chat = getCurrentChat();
+            const app = document.getElementById('app');
+            
+            app.innerHTML = `
+                <div class="flex h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+                    <!-- Sidebar -->
+                    <div class="${state.sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-slate-800/50 backdrop-blur-sm border-r border-purple-500/20 overflow-hidden">
+                        <div class="p-4">
+                            <div class="flex items-center gap-2 mb-6">
+                                <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-2xl">✨</div>
+                                <span class="font-bold text-lg">AI Studio</span>
+                            </div>
+                            
+                            <button onclick="createNewChat()" class="w-full bg-purple-600 hover:bg-purple-700 rounded-lg px-4 py-3 flex items-center gap-2 mb-4 transition-colors">
+                                <span class="text-xl">➕</span>
+                                <span>Nový čet</span>
+                            </button>
+
+                            <div class="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
+                                ${state.chats.map(c => `
+                                    <button onclick="state.activeChat = ${c.id}; render();" class="w-full text-left px-3 py-2 rounded-lg transition-colors ${state.activeChat === c.id ? 'bg-purple-600/50' : 'hover:bg-slate-700/50'}">
+                                        <div class="text-sm font-medium truncate">${c.title}</div>
+                                        <div class="text-xs text-slate-400">${c.messages.length} správ</div>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main -->
+                    <div class="flex-1 flex flex-col">
+                        <!-- Header -->
+                        <div class="bg-slate-800/30 backdrop-blur-sm border-b border-purple-500/20 p-4 flex items-center gap-3">
+                            <button onclick="state.sidebarOpen = !state.sidebarOpen; render();" class="p-2 hover:bg-slate-700/50 rounded-lg">
+                                <span class="text-xl">☰</span>
+                            </button>
+                            <h1 class="text-xl font-semibold">${chat.title}</h1>
+                            
+                            <div class="ml-auto flex gap-2 overflow-x-auto items-center">
+                                <button onclick="state.mode = 'chat'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'chat' ? 'bg-purple-600 shadow-lg shadow-purple-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Chat
+                                </button>
+                                <button onclick="state.mode = 'chart'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'chart' ? 'bg-blue-600 shadow-lg shadow-blue-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Grafy
+                                </button>
+                                <button onclick="state.mode = 'image'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'image' ? 'bg-pink-600 shadow-lg shadow-pink-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Obrázky
+                                </button>
+                                <button onclick="state.mode = 'analyze-image'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'analyze-image' ? 'bg-indigo-600 shadow-lg shadow-indigo-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Analýza
+                                </button>
+                                <button onclick="state.mode = 'code'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'code' ? 'bg-green-600 shadow-lg shadow-green-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Kód
+                                </button>
+                                <button onclick="state.mode = 'humanize'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'humanize' ? 'bg-yellow-600 shadow-lg shadow-yellow-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Humanizátor
+                                </button>
+                                <button onclick="state.mode = 'presentation'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'presentation' ? 'bg-red-600 shadow-lg shadow-red-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Prezentácia
+                                </button>
+                                <button onclick="state.mode = 'summarizer'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'summarizer' ? 'bg-teal-600 shadow-lg shadow-teal-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Summarizer
+                                </button>
+                                <button onclick="state.mode = 'pdf'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'pdf' ? 'bg-orange-600 shadow-lg shadow-orange-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    PDF
+                                </button>
+                                <button onclick="state.mode = 'quiz'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'quiz' ? 'bg-cyan-600 shadow-lg shadow-cyan-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                    Quiz
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Messages -->
+                        <div class="flex-1 overflow-y-auto p-6" id="messages">
+                            ${chat.messages.length === 0 ? `
+                                <div class="max-w-4xl mx-auto">
+                                    <div class="text-center mb-12 mt-8">
+                                        <h2 class="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                                            Vítajte v AI Studio
+                                        </h2>
+                                        <p class="text-slate-300 text-lg mb-2">Komplexná AI platforma pre vašu rodinu</p>
+                                        <p class="text-slate-400 text-sm">💡 Prepínajte medzi funkciami pomocou tlačidiel v pravom hornom rohu</p>
+                                    </div>
+                                    
+                                    <div class="mb-8">
+                                        <h3 class="text-2xl font-bold mb-6 text-center text-purple-300">✨ Dostupné funkcie</h3>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            ${tools.map((t, i) => `
+                                                <div class="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-xl p-6 text-left">
+                                                    <div class="text-4xl mb-4">${t.icon}</div>
+                                                    <h3 class="text-lg font-semibold mb-2">${t.title}</h3>
+                                                    <p class="text-sm text-slate-400">${t.desc}</p>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-slate-800/30 rounded-xl p-6 border border-purple-500/20">
+                                        <h3 class="text-xl font-bold mb-4 text-center">🚀 Ako začať?</h3>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                            <div class="flex items-start gap-3">
+                                                <span class="text-2xl">1️⃣</span>
+                                                <div>
+                                                    <p class="font-semibold text-purple-300">Vyberte funkciu</p>
+                                                    <p class="text-slate-400">Kliknite na tlačidlo v hornom menu</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-start gap-3">
+                                                <span class="text-2xl">2️⃣</span>
+                                                <div>
+                                                    <p class="font-semibold text-purple-300">Zadajte požiadavku</p>
+                                                    <p class="text-slate-400">Napíšte čo potrebujete</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-start gap-3">
+                                                <span class="text-2xl">3️⃣</span>
+                                                <div>
+                                                    <p class="font-semibold text-purple-300">Získajte výsledok</p>
+                                                    <p class="text-slate-400">AI spraví svoju mágiu ✨</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-start gap-3">
+                                                <span class="text-2xl">4️⃣</span>
+                                                <div>
+                                                    <p class="font-semibold text-purple-300">Stiahnite si ho</p>
+                                                    <p class="text-slate-400">Grafy, prezentácie, obrázky...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="max-w-3xl mx-auto space-y-6">
+                                    ${chat.messages.map(m => `
+                                        <div class="flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}">
+                                            <div class="${m.isImage ? 'max-w-full' : 'max-w-[80%]'} rounded-2xl px-6 py-4 ${
+                                                m.role === 'user' 
+                                                    ? 'bg-gradient-to-br from-purple-600 to-pink-600' 
+                                                    : m.isError 
+                                                    ? 'bg-red-900/30 border border-red-500/50' 
+                                                    : 'bg-slate-800/50 border border-purple-500/20'
+                                            }">
+                                                ${m.isImage ? `
+                                                    <div class="space-y-3">
+                                                        <div class="text-sm text-slate-300">✨ Vygenerovaný obrázok:</div>
+                                                        <img src="${m.content}" alt="${m.imagePrompt}" class="rounded-lg w-full max-w-2xl" />
+                                                        <div class="text-xs text-slate-400 italic">"${m.imagePrompt}"</div>
+                                                        <a href="${m.content}" target="_blank" class="inline-block mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm transition-colors">
+                                                            📥 Stiahnuť obrázok
+                                                        </a>
+                                                    </div>
+                                                ` : m.isChart ? `
+                                                    <div class="space-y-3">
+                                                        <div class="text-sm text-slate-300">📊 Vygenerovaný graf:</div>
+                                                        <div class="bg-slate-900/50 p-4 rounded-lg">
+                                                            <canvas id="${m.chartId}" width="600" height="400"></canvas>
+                                                        </div>
+                                                        <button onclick="downloadChart('${m.chartId}')" class="inline-block mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm transition-colors">
+                                                            📥 Stiahnuť ako PNG
+                                                        </button>
+                                                    </div>
+                                                ` : m.imageUrl ? `
+                                                    <div class="space-y-3">
+                                                        <img src="${m.imageUrl}" class="rounded-lg max-w-xs">
+                                                        <div class="whitespace-pre-wrap">${m.content}</div>
+                                                    </div>
+                                                ` : `
+                                                    <div class="whitespace-pre-wrap">${m.content}</div>
+                                                `}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                    
+                                    ${state.isLoading ? `
+                                        <div class="flex justify-start">
+                                            <div class="bg-slate-800/50 border border-purple-500/20 rounded-2xl px-6 py-4">
+                                                <div class="flex gap-2">
+                                                    <div class="w-2 h-2 bg-purple-500 rounded-full bounce"></div>
+                                                    <div class="w-2 h-2 bg-purple-500 rounded-full bounce" style="animation-delay: 0.15s"></div>
+                                                    <div class="w-2 h-2 bg-purple-500 rounded-full bounce" style="animation-delay: 0.3s"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `}
+                        </div>
+
+                        <!-- Input -->
+                        <div class="bg-slate-800/30 backdrop-blur-sm border-t border-purple-500/20 p-4">
+                            <div class="max-w-3xl mx-auto">
+                                ${state.mode === 'image' ? `
+                                    <div class="mb-3 flex gap-3">
+                                        <select onchange="state.imageSize = this.value" class="bg-slate-700/50 border border-purple-500/30 rounded-lg px-4 py-2 text-white text-sm">
+                                            <option value="1024x1024" ${state.imageSize === '1024x1024' ? 'selected' : ''}>1024x1024 (Štandard)</option>
+                                            <option value="1024x1792" ${state.imageSize === '1024x1792' ? 'selected' : ''}>1024x1792 (Výška)</option>
+                                            <option value="1792x1024" ${state.imageSize === '1792x1024' ? 'selected' : ''}>1792x1024 (Šírka)</option>
+                                        </select>
+                                        <select onchange="state.imageQuality = this.value" class="bg-slate-700/50 border border-purple-500/30 rounded-lg px-4 py-2 text-white text-sm">
+                                            <option value="standard" ${state.imageQuality === 'standard' ? 'selected' : ''}>Štandard</option>
+                                            <option value="hd" ${state.imageQuality === 'hd' ? 'selected' : ''}>HD (drahšie)</option>
+                                        </select>
+                                    </div>
+                                ` : ''}
+                                ${state.mode === 'chart' ? `
+                                    <div class="mb-3 text-sm text-slate-300 bg-slate-800/50 rounded-lg p-3">
+                                        💡 <strong>Príklady:</strong><br>
+                                        • "Stĺpcový graf populácie: Bratislava 475000, Košice 229000, Prešov 84000"<br>
+                                        • "Koláčový graf predaj: jablká 150, hrušky 80, banány 120"<br>
+                                        • "Graf s dvoma osami Y: mesačné tržby stĺpce 10000, 12000, 15000 a čiara počet zákazníkov 50, 65, 80"
+                                    </div>
+                                ` : ''}
+                                ${state.mode === 'analyze-image' ? `
+                                    <div class="mb-3">
+                                        <input type="file" accept="image/*" onchange="handleImageUpload(event)" 
+                                            class="bg-slate-700/50 border border-purple-500/30 rounded-lg px-4 py-2 text-white text-sm w-full">
+                                        ${state.uploadedImage ? '<div class="mt-2 text-sm text-green-400">✓ Obrázok nahraný</div>' : ''}
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="flex gap-2 mb-2">
+                                    <button onclick="state.useTextEditor = !state.useTextEditor; render();" 
+                                        class="text-sm px-3 py-1 rounded-lg ${state.useTextEditor ? 'bg-purple-600' : 'bg-slate-700/50'} hover:bg-purple-700 transition-colors">
+                                        ${state.useTextEditor ? '📝 Editor zapnutý' : '📄 Prepnúť na editor'}
+                                    </button>
+                                </div>
+                                
+                                <div class="flex gap-3 ${state.useTextEditor ? 'flex-col' : ''}">
+                                    ${state.useTextEditor ? `
+                                        <textarea 
+                                            id="input"
+                                            oninput="state.input = this.value"
+                                        placeholder="${
+                                            state.mode === 'image' ? '🎨 Popíšte obrázok, ktorý chcete vygenerovať...' : 
+                                            state.mode === 'chart' ? '📊 Popíšte dáta a typ grafu...' :
+                                            state.mode === 'humanize' ? '✨ Vložte text na humanizáciu...' :
+                                            state.mode === 'code' ? '💻 Vložte kód na review...' :
+                                            state.mode === 'presentation' ? '📽️ Zadajte tému prezentácie...' :
+                                            state.mode === 'analyze-image' ? '🖼️ Čo chcete vedieť o obrázku?' :
+                                            state.mode === 'summarizer' ? '📝 Vložte dlhý text na zhrnutie...' :
+                                            state.mode === 'pdf' ? '📄 Čo chcete vygenerovať? (faktúra, životopis...)' :
+                                            state.mode === 'quiz' ? '❓ Vložte učebný materiál...' :
+                                            '💬 Napíšte správu...'
+                                        }"
+                                            class="flex-1 bg-slate-700/50 border border-purple-500/30 rounded-xl px-6 py-4 focus:outline-none focus:border-purple-500 text-white resize-none"
+                                            rows="6"
+                                            ${state.isLoading ? 'disabled' : ''}
+                                        >${state.input}</textarea>
+                                        <button 
+                                            onclick="sendMessage()"
+                                            class="bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl px-6 py-3 transition-all ${state.isLoading || !state.input.trim() ? 'opacity-50 cursor-not-allowed' : ''}"
+                                            ${state.isLoading || !state.input.trim() ? 'disabled' : ''}
+                                        >
+                                            <span class="text-xl">➤ Odoslať</span>
+                                        </button>
+                                    ` : `
+                                        <input 
+                                            type="text" 
+                                            id="input"
+                                            value="${state.input}"
+                                            oninput="state.input = this.value"
+                                            onkeypress="if(event.key==='Enter') sendMessage()"
+                                            placeholder="${
+                                                state.mode === 'image' ? '🎨 Popíšte obrázok, ktorý chcete vygenerovať...' : 
+                                                state.mode === 'chart' ? '📊 Popíšte dáta a typ grafu...' :
+                                                state.mode === 'humanize' ? '✨ Vložte text na humanizáciu...' :
+                                                state.mode === 'code' ? '💻 Vložte kód na review...' :
+                                                state.mode === 'presentation' ? '📽️ Zadajte tému prezentácie...' :
+                                                state.mode === 'analyze-image' ? '🖼️ Čo chcete vedieť o obrázku?' :
+                                                state.mode === 'summarizer' ? '📝 Vložte dlhý text na zhrnutie...' :
+                                                state.mode === 'pdf' ? '📄 Čo chcete vygenerovať? (faktúra, životopis...)' :
+                                                state.mode === 'quiz' ? '❓ Vložte učebný materiál...' :
+                                                '💬 Napíšte správu...'
+                                            } (Enter = Odoslať)"
+                                            class="flex-1 bg-slate-700/50 border border-purple-500/30 rounded-xl px-6 py-3 focus:outline-none focus:border-purple-500 text-white"
+                                            ${state.isLoading ? 'disabled' : ''}
+                                        >
+                                        <button 
+                                            onclick="sendMessage()"
+                                            class="bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl px-6 py-3 transition-all ${state.isLoading || !state.input.trim() ? 'opacity-50 cursor-not-allowed' : ''}"
+                                            ${state.isLoading || !state.input.trim() ? 'disabled' : ''}
+                                        >
+                                            <span class="text-xl">${state.mode === 'image' ? '🎨' : state.mode === 'chart' ? '📊' : '➤'}</span>
+                                        </button>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Scroll to bottom
+            const msgs = document.getElementById('messages');
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        // Inicializácia
+        render();
+    </script>
+</body>
+</html>
