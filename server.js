@@ -14,10 +14,21 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-proj-YOUR-API-KEY-HERE'
 
 // Helper funkcia na kontrolu API kľúča
 function isValidApiKey(key) {
-    return key && 
-           key !== 'sk-proj-YOUR-API-KEY-HERE' && 
-           key.startsWith('sk-') && 
-           key.length > 20;
+    if (!key) return false;
+    if (key === 'sk-proj-YOUR-API-KEY-HERE') return false;
+    if (!key.startsWith('sk-')) return false;
+    if (key.length < 20) return false;
+    return true;
+}
+
+// Debug logging (len pre development)
+if (process.env.NODE_ENV !== 'production') {
+    console.log('🔑 API Key Status:', {
+        hasEnvVar: !!process.env.OPENAI_API_KEY,
+        keyLength: OPENAI_API_KEY?.length || 0,
+        keyPrefix: OPENAI_API_KEY?.substring(0, 10) || 'none',
+        isValid: isValidApiKey(OPENAI_API_KEY)
+    });
 }
 
 app.use(cors());

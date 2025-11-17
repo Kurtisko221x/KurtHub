@@ -178,10 +178,31 @@
     <div id="app"></div>
 
     <script>
+        // Načítaj chaty z localStorage
+        function loadChatsFromStorage() {
+            try {
+                const saved = localStorage.getItem('aiStudioChats');
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Error loading chats:', e);
+            }
+            return [{ id: 1, type: 'chat', title: 'Nový čet', messages: [], createdAt: Date.now() }];
+        }
+        
+        function saveChatsToStorage() {
+            try {
+                localStorage.setItem('aiStudioChats', JSON.stringify(state.chats));
+            } catch (e) {
+                console.error('Error saving chats:', e);
+            }
+        }
+        
         // Stav aplikácie
         let state = {
-            chats: [{ id: 1, title: 'Nový čet', messages: [] }],
-            activeChat: 1,
+            chats: loadChatsFromStorage(),
+            activeChat: loadChatsFromStorage()[0]?.id || 1,
             input: '',
             isLoading: false,
             sidebarOpen: true,
@@ -197,6 +218,20 @@
         
         // Nastav tému pri načítaní
         document.documentElement.setAttribute('data-theme', state.theme);
+        
+        // Mapovanie typov na ikony
+        const modeIcons = {
+            'chat': '💬',
+            'chart': '📊',
+            'image': '🎨',
+            'analyze-image': '🖼️',
+            'code': '💻',
+            'humanize': '✨',
+            'presentation': '📽️',
+            'summarizer': '📝',
+            'pdf': '📄',
+            'quiz': '❓'
+        };
 
         const tools = [
             { title: 'Chat s AI', desc: 'Prirozdená konverzácia s AI modelom', icon: '💬', mode: 'chat' },
@@ -215,11 +250,55 @@
             return state.chats.find(c => c.id === state.activeChat);
         }
 
-        function createNewChat() {
-            const newId = Math.max(...state.chats.map(c => c.id)) + 1;
-            state.chats.unshift({ id: newId, title: 'Nový čet', messages: [] });
+        function createNewChat(mode = null) {
+            const newId = Math.max(...state.chats.map(c => c.id), 0) + 1;
+            const chatType = mode || state.mode;
+            const defaultTitles = {
+                'chat': 'Nový čet',
+                'chart': 'Nový graf',
+                'image': 'Nový obrázok',
+                'analyze-image': 'Analýza obrázka',
+                'code': 'Code Review',
+                'humanize': 'Humanizátor',
+                'presentation': 'Nová prezentácia',
+                'summarizer': 'Summarizer',
+                'pdf': 'PDF dokument',
+                'quiz': 'Nový kvíz'
+            };
+            
+            const newChat = {
+                id: newId,
+                type: chatType,
+                title: defaultTitles[chatType] || 'Nový čet',
+                messages: [],
+                createdAt: Date.now()
+            };
+            
+            state.chats.unshift(newChat);
             state.activeChat = newId;
+            saveChatsToStorage();
             render();
+        }
+        
+        function deleteChat(chatId) {
+            if (state.chats.length <= 1) {
+                alert('Nemôžete zmazať posledný chat!');
+                return;
+            }
+            if (confirm('Naozaj chcete zmazať tento chat?')) {
+                state.chats = state.chats.filter(c => c.id !== chatId);
+                if (state.activeChat === chatId) {
+                    state.activeChat = state.chats[0].id;
+                }
+                saveChatsToStorage();
+                render();
+            }
+        }
+        
+        function switchToMode(mode) {
+            // Vytvor nový chat pre daný režim
+            state.mode = mode;
+            createNewChat(mode);
         }
         
         function toggleTheme() {
@@ -299,7 +378,9 @@
             chat.messages.push(userMsg);
             
             if (chat.messages.length === 1) {
-                chat.title = state.input.substring(0, 30) + (state.input.length > 30 ? '...' : '');
+                const titlePrefix = modeIcons[chat.type] || '💬';
+                chat.title = titlePrefix + ' ' + state.input.substring(0, 25) + (state.input.length > 25 ? '...' : '');
+                saveChatsToStorage();
             }
 
             state.input = '';
@@ -339,6 +420,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -395,6 +477,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -462,6 +545,7 @@
 
             state.uploadedImage = null;
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -524,6 +608,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -586,6 +671,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -646,6 +732,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -708,6 +795,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -766,6 +854,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
         }
 
@@ -930,6 +1019,7 @@
             }
 
             state.isLoading = false;
+            saveChatsToStorage();
             render();
             
             // Vykreslíme grafy po renderi
@@ -1111,10 +1201,20 @@
 
                             <div class="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
                                 ${state.chats.map(c => `
-                                    <button onclick="state.activeChat = ${c.id}; render();" class="w-full text-left px-3 py-2 rounded-lg transition-colors ${state.activeChat === c.id ? 'bg-purple-600/50' : 'hover:bg-slate-700/50'}">
-                                        <div class="text-sm font-medium truncate">${c.title}</div>
-                                        <div class="text-xs text-slate-400">${c.messages.length} správ</div>
-                                    </button>
+                                    <div class="group relative">
+                                        <button onclick="state.activeChat = ${c.id}; state.mode = '${c.type}'; render();" 
+                                            class="w-full text-left px-3 py-2 rounded-lg transition-colors ${state.activeChat === c.id ? 'bg-purple-600/50' : 'hover:bg-slate-700/50'} flex items-center gap-2">
+                                            <span class="text-lg">${modeIcons[c.type] || '💬'}</span>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="text-sm font-medium truncate">${c.title}</div>
+                                                <div class="text-xs text-slate-400">${c.messages.length} správ</div>
+                                            </div>
+                                        </button>
+                                        <button onclick="deleteChat(${c.id})" 
+                                            class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-600/50 rounded text-red-400 text-xs">
+                                            🗑️
+                                        </button>
+                                    </div>
                                 `).join('')}
                             </div>
                         </div>
@@ -1137,34 +1237,34 @@
                                 
                                 <!-- Separator -->
                                 <div class="h-6 w-px bg-slate-600"></div>
-                                <button onclick="state.mode = 'chat'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'chat' ? 'bg-purple-600 shadow-lg shadow-purple-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('chat')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'chat' ? 'bg-purple-600 shadow-lg shadow-purple-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Chat
                                 </button>
-                                <button onclick="state.mode = 'chart'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'chart' ? 'bg-blue-600 shadow-lg shadow-blue-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('chart')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'chart' ? 'bg-blue-600 shadow-lg shadow-blue-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Grafy
                                 </button>
-                                <button onclick="state.mode = 'image'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'image' ? 'bg-pink-600 shadow-lg shadow-pink-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('image')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'image' ? 'bg-pink-600 shadow-lg shadow-pink-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Obrázky
                                 </button>
-                                <button onclick="state.mode = 'analyze-image'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'analyze-image' ? 'bg-indigo-600 shadow-lg shadow-indigo-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('analyze-image')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'analyze-image' ? 'bg-indigo-600 shadow-lg shadow-indigo-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Analýza
                                 </button>
-                                <button onclick="state.mode = 'code'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'code' ? 'bg-green-600 shadow-lg shadow-green-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('code')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'code' ? 'bg-green-600 shadow-lg shadow-green-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Kód
                                 </button>
-                                <button onclick="state.mode = 'humanize'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'humanize' ? 'bg-yellow-600 shadow-lg shadow-yellow-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('humanize')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'humanize' ? 'bg-yellow-600 shadow-lg shadow-yellow-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Humanizátor
                                 </button>
-                                <button onclick="state.mode = 'presentation'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'presentation' ? 'bg-red-600 shadow-lg shadow-red-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('presentation')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'presentation' ? 'bg-red-600 shadow-lg shadow-red-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Prezentácia
                                 </button>
-                                <button onclick="state.mode = 'summarizer'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'summarizer' ? 'bg-teal-600 shadow-lg shadow-teal-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('summarizer')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'summarizer' ? 'bg-teal-600 shadow-lg shadow-teal-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Summarizer
                                 </button>
-                                <button onclick="state.mode = 'pdf'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'pdf' ? 'bg-orange-600 shadow-lg shadow-orange-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('pdf')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'pdf' ? 'bg-orange-600 shadow-lg shadow-orange-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     PDF
                                 </button>
-                                <button onclick="state.mode = 'quiz'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'quiz' ? 'bg-cyan-600 shadow-lg shadow-cyan-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
+                                <button onclick="switchToMode('quiz')" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'quiz' ? 'bg-cyan-600 shadow-lg shadow-cyan-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Quiz
                                 </button>
                             </div>
@@ -1395,7 +1495,6 @@
                                     ${state.useTextEditor ? `
                                         <textarea 
                                             id="input"
-                                            oninput="state.input = this.value"
                                         placeholder="${
                                             state.mode === 'image' ? '🎨 Popíšte obrázok, ktorý chcete vygenerovať...' : 
                                             state.mode === 'chart' ? '📊 Popíšte dáta a typ grafu...' :
@@ -1413,7 +1512,8 @@
                                             ${state.isLoading ? 'disabled' : ''}
                                         >${state.input}</textarea>
                                         <button 
-                                            onclick="sendMessage()"
+                                            id="send-button"
+                                            type="button"
                                             class="bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl px-6 py-3 transition-all ${state.isLoading || !state.input.trim() ? 'opacity-50 cursor-not-allowed' : ''}"
                                             ${state.isLoading || !state.input.trim() ? 'disabled' : ''}
                                         >
@@ -1424,8 +1524,6 @@
                                             type="text" 
                                             id="input"
                                             value="${state.input}"
-                                            oninput="state.input = this.value"
-                                            onkeypress="if(event.key==='Enter') sendMessage()"
                                             placeholder="${
                                                 state.mode === 'image' ? '🎨 Popíšte obrázok, ktorý chcete vygenerovať...' : 
                                                 state.mode === 'chart' ? '📊 Popíšte dáta a typ grafu...' :
@@ -1442,7 +1540,8 @@
                                             ${state.isLoading ? 'disabled' : ''}
                                         >
                                         <button 
-                                            onclick="sendMessage()"
+                                            id="send-button"
+                                            type="button"
                                             class="bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl px-6 py-3 transition-all ${state.isLoading || !state.input.trim() ? 'opacity-50 cursor-not-allowed' : ''}"
                                             ${state.isLoading || !state.input.trim() ? 'disabled' : ''}
                                         >
@@ -1486,6 +1585,43 @@
             document.querySelectorAll('.fade-in-up-delay-1, .fade-in-up-delay-2').forEach(el => {
                 observer.observe(el);
             });
+            
+            // Re-inicializuj event listenery pre input a button (OPRAVA SUBMIT BUTTON)
+            setTimeout(() => {
+                const inputEl = document.getElementById('input');
+                const sendButton = document.getElementById('send-button');
+                
+                if (inputEl) {
+                    // Pridaj event listenery
+                    inputEl.addEventListener('input', function(e) {
+                        state.input = e.target.value;
+                        // Update button state
+                        if (sendButton) {
+                            const hasText = state.input.trim().length > 0;
+                            sendButton.disabled = state.isLoading || !hasText;
+                            sendButton.classList.toggle('opacity-50', state.isLoading || !hasText);
+                            sendButton.classList.toggle('cursor-not-allowed', state.isLoading || !hasText);
+                        }
+                    });
+                    
+                    inputEl.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter' && !e.shiftKey && !state.isLoading) {
+                            e.preventDefault();
+                            sendMessage();
+                        }
+                    });
+                }
+                
+                if (sendButton) {
+                    // Pridaj event listener
+                    sendButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        if (!state.isLoading && state.input.trim()) {
+                            sendMessage();
+                        }
+                    });
+                }
+            }, 50);
         }
 
         // Inicializácia
