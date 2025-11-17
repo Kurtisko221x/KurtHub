@@ -6,14 +6,99 @@
     <title>AI Studio - Rodinná Platforma</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
+        
+        /* Dark/Light mode colors */
+        :root[data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border-color: rgba(139, 92, 246, 0.2);
         }
-        .bounce { animation: bounce 1s infinite; }
+        
+        :root[data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border-color: rgba(139, 92, 246, 0.3);
+        }
+        
+        /* Loading progress bar */
+        @keyframes progressBar {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+        
+        .progress-bar {
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            animation: progressBar 2s ease-in-out infinite;
+        }
+        
+        /* Avatars */
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        .avatar-user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .avatar-ai {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+        }
+        
+        /* Markdown styling */
+        .markdown-content h1 { font-size: 2em; font-weight: bold; margin: 0.5em 0; }
+        .markdown-content h2 { font-size: 1.5em; font-weight: bold; margin: 0.5em 0; }
+        .markdown-content h3 { font-size: 1.25em; font-weight: bold; margin: 0.5em 0; }
+        .markdown-content p { margin: 0.5em 0; line-height: 1.6; }
+        .markdown-content ul, .markdown-content ol { margin: 0.5em 0; padding-left: 1.5em; }
+        .markdown-content li { margin: 0.25em 0; }
+        .markdown-content code { 
+            background: rgba(139, 92, 246, 0.1); 
+            padding: 2px 6px; 
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .markdown-content pre {
+            background: #1e293b;
+            padding: 1em;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+        }
+        .markdown-content strong { font-weight: 700; }
+        .markdown-content em { font-style: italic; }
+        .markdown-content blockquote {
+            border-left: 4px solid #8b5cf6;
+            padding-left: 1em;
+            margin: 1em 0;
+            color: #94a3b8;
+        }
     </style>
 </head>
 <body>
@@ -33,8 +118,12 @@
             chartType: 'bar',
             chartData: null,
             uploadedImage: null,
-            useTextEditor: false // prepínanie medzi input a textarea
+            useTextEditor: false, // prepínanie medzi input a textarea
+            theme: localStorage.getItem('theme') || 'dark' // dark alebo light
         };
+        
+        // Nastav tému pri načítaní
+        document.documentElement.setAttribute('data-theme', state.theme);
 
         const tools = [
             { title: 'Chat s AI', desc: 'Prirozdená konverzácia s AI modelom', icon: '💬', mode: 'chat' },
@@ -58,6 +147,30 @@
             state.chats.unshift({ id: newId, title: 'Nový čet', messages: [] });
             state.activeChat = newId;
             render();
+        }
+        
+        function toggleTheme() {
+            state.theme = state.theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', state.theme);
+            document.documentElement.setAttribute('data-theme', state.theme);
+            render();
+        }
+        
+        function formatMarkdown(text) {
+            // Nastav marked options
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                highlight: function(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) {}
+                    }
+                    return hljs.highlightAuto(code).value;
+                }
+            });
+            return marked.parse(text);
         }
 
         async function sendMessage() {
@@ -902,8 +1015,14 @@
             const chat = getCurrentChat();
             const app = document.getElementById('app');
             
+            const bgGradient = state.theme === 'dark' 
+                ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900' 
+                : 'bg-gradient-to-br from-slate-50 via-purple-50 to-slate-50';
+            
+            const textColor = state.theme === 'dark' ? 'text-white' : 'text-slate-900';
+            
             app.innerHTML = `
-                <div class="flex h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+                <div class="flex h-screen ${bgGradient} ${textColor}">
                     <!-- Sidebar -->
                     <div class="${state.sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-slate-800/50 backdrop-blur-sm border-r border-purple-500/20 overflow-hidden">
                         <div class="p-4">
@@ -938,6 +1057,13 @@
                             <h1 class="text-xl font-semibold">${chat.title}</h1>
                             
                             <div class="ml-auto flex gap-2 overflow-x-auto items-center">
+                                <!-- Theme Toggle -->
+                                <button onclick="toggleTheme()" class="p-2 hover:bg-slate-700/50 rounded-lg transition-colors" title="Prepnúť tému">
+                                    <span class="text-xl">${state.theme === 'dark' ? '☀️' : '🌙'}</span>
+                                </button>
+                                
+                                <!-- Separator -->
+                                <div class="h-6 w-px bg-slate-600"></div>
                                 <button onclick="state.mode = 'chat'; render();" class="px-3 py-1.5 rounded-md transition-all text-xs font-medium whitespace-nowrap ${state.mode === 'chat' ? 'bg-purple-600 shadow-lg shadow-purple-500/50' : 'bg-slate-700/50 hover:bg-slate-600/70 border border-slate-600'}">
                                     Chat
                                 </button>
@@ -1033,7 +1159,12 @@
                             ` : `
                                 <div class="max-w-3xl mx-auto space-y-6">
                                     ${chat.messages.map(m => `
-                                        <div class="flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}">
+                                        <div class="flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}">
+                                            ${m.role === 'user' ? '' : `
+                                                <div class="avatar avatar-ai">
+                                                    <span>🤖</span>
+                                                </div>
+                                            `}
                                             <div class="${m.isImage ? 'max-w-full' : 'max-w-[80%]'} rounded-2xl px-6 py-4 ${
                                                 m.role === 'user' 
                                                     ? 'bg-gradient-to-br from-purple-600 to-pink-600' 
@@ -1063,22 +1194,29 @@
                                                 ` : m.imageUrl ? `
                                                     <div class="space-y-3">
                                                         <img src="${m.imageUrl}" class="rounded-lg max-w-xs">
-                                                        <div class="whitespace-pre-wrap">${m.content}</div>
+                                                        <div class="markdown-content">${formatMarkdown(m.content)}</div>
                                                     </div>
                                                 ` : `
-                                                    <div class="whitespace-pre-wrap">${m.content}</div>
+                                                    <div class="markdown-content">${m.role === 'assistant' ? formatMarkdown(m.content) : m.content}</div>
                                                 `}
                                             </div>
+                                            ${m.role === 'user' ? `
+                                                <div class="avatar avatar-user">
+                                                    <span>👤</span>
+                                                </div>
+                                            ` : ''}
                                         </div>
                                     `).join('')}
                                     
                                     ${state.isLoading ? `
-                                        <div class="flex justify-start">
-                                            <div class="bg-slate-800/50 border border-purple-500/20 rounded-2xl px-6 py-4">
-                                                <div class="flex gap-2">
-                                                    <div class="w-2 h-2 bg-purple-500 rounded-full bounce"></div>
-                                                    <div class="w-2 h-2 bg-purple-500 rounded-full bounce" style="animation-delay: 0.15s"></div>
-                                                    <div class="w-2 h-2 bg-purple-500 rounded-full bounce" style="animation-delay: 0.3s"></div>
+                                        <div class="flex gap-3 justify-start">
+                                            <div class="avatar avatar-ai">
+                                                <span>🤖</span>
+                                            </div>
+                                            <div class="bg-slate-800/50 border border-purple-500/20 rounded-2xl px-6 py-4 w-64">
+                                                <div class="text-sm text-slate-400 mb-2">AI píše...</div>
+                                                <div class="w-full bg-slate-700/50 rounded-full h-1 overflow-hidden">
+                                                    <div class="progress-bar"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1194,6 +1332,13 @@
             // Scroll to bottom
             const msgs = document.getElementById('messages');
             if (msgs) msgs.scrollTop = msgs.scrollHeight;
+            
+            // Aplikuj syntax highlighting na všetky code blocky
+            setTimeout(() => {
+                document.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            }, 50);
         }
 
         // Inicializácia
